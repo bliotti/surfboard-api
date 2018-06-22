@@ -3,20 +3,35 @@ const app = require('express')()
 const port = process.env.PORT || 5001
 const bodyParser = require('body-parser')
 const NodeHTTPError = require('node-http-error')
-const { propOr, isEmpty, compose, not, join, pathOr } = require('ramda')
+const { propOr, map, isEmpty, compose, not, join, pathOr } = require('ramda')
 const reqFieldChecker = require('./lib/required-field-check')
 const {
-  addBoard,
-  updateBoard,
-  deleteBoard,
-  deleteBoardPromise,
-  listBoards
+	addBoard,
+	updateBoard,
+	deleteBoard,
+	deleteBoardPromise,
+	listBoards
 } = require('./dal')
 
 app.use(bodyParser.json())
 
 app.get('/', function(req, res, next) {
 	res.send('Welcome to the brocean, brah.  Gnar Gnar.')
+})
+
+app.get('/boards', function(req, res, next) {
+	listBoards(function(err, result) {
+		err
+			? next(new NodeHTTPError(err.status, err.message, err))
+			: res.status(200).send(map(row => row.doc, result.rows))
+		/*
+		if (err) {
+			next(new NodeHTTPError(err.status, err.message, err))
+			return
+		}
+		res.status(200).send(result)
+			*/
+	})
 })
 
 app.put('/boards', (req, res, next) => {})
@@ -66,43 +81,46 @@ app.post('/boards', (req, res, next) => {
 })
 
 app.put('/boards/:sku', function(req, res, next) {
-  const updatedBoard = propOr({}, 'body', req)
-  //console.log('updatedBoard', updatedBoard)
+	const updatedBoard = propOr({}, 'body', req)
+	//console.log('updatedBoard', updatedBoard)
 
-  if (isEmpty(updatedBoard)) {
-    console.log('i dont have a board.')
-    next(
-      new NodeHTTPError(
-        400,
-        'Brah, add a board to the request body.  Ensure the Content-Type is application/json. Dude!'
-      )
-    )
-  }
+	if (isEmpty(updatedBoard)) {
+		console.log('i dont have a board.')
+		next(
+			new NodeHTTPError(
+				400,
+				'Brah, add a board to the request body.  Ensure the Content-Type is application/json. Dude!'
+			)
+		)
+	}
 
-  const missingFields = reqFieldChecker(
-    ['_id', '_rev', 'name', 'category', 'price', 'sku'],
-    updatedBoard
-  )
+	const missingFields = reqFieldChecker(
+		['_id', '_rev', 'name', 'category', 'price', 'sku'],
+		updatedBoard
+	)
 
-  const sendMissingFieldError = compose(not, isEmpty)(missingFields)
+	const sendMissingFieldError = compose(
+		not,
+		isEmpty
+	)(missingFields)
 
-  if (sendMissingFieldError) {
-    console.log('I have missing required fields. ')
-    next(
-      new NodeHTTPError(
-        400,
-        `Brah, you didnt pass all the required fields: ${join(
-          ', ',
-          missingFields
-        )}`
-      )
-    )
-  }
+	if (sendMissingFieldError) {
+		console.log('I have missing required fields. ')
+		next(
+			new NodeHTTPError(
+				400,
+				`Brah, you didnt pass all the required fields: ${join(
+					', ',
+					missingFields
+				)}`
+			)
+		)
+	}
 
-  updateBoard(updatedBoard, function(err, result) {
-    if (err) next(new NodeHTTPError(err.status, err.message))
-    res.status(200).send(result)
-  })
+	updateBoard(updatedBoard, function(err, result) {
+		if (err) next(new NodeHTTPError(err.status, err.message))
+		res.status(200).send(result)
+	})
 })
 
 // app.delete('/boards/:sku', (req, res, next) =>
@@ -116,17 +134,10 @@ app.put('/boards/:sku', function(req, res, next) {
 // )
 
 app.delete('/boards/:sku', (req, res, next) =>
-  deleteBoardPromise(`board_${req.params.sku}`)
-    .then(result => res.status(200).send(result))
-    .catch(err => next(new NodeHTTPError(err.status, err.message, err)))
+	deleteBoardPromise(`board_${req.params.sku}`)
+		.then(result => res.status(200).send(result))
+		.catch(err => next(new NodeHTTPError(err.status, err.message, err)))
 )
-
-app.get('/boards', (req, res, next) => {
-  const limit = Number(pathOr(10, ['query', 'limit'], req)) // "10" or 10
-  listBoards(limit)
-    .then(boards => res.status(200).send(boards))
-    .catch(err => next(new NodeHTTPError(err.status, err.message, err)))
-})
 
 app.use((err, req, res, next) => {
 	console.log(
