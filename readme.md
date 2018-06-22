@@ -135,11 +135,9 @@ Edits a board. Provide the `sku` in the path to identify the board. Provide the 
 
 The `_id`, `_rev`, `type`, `name`, `category`, `price`, and `sku` properties are required.
 
----
-
 **Example**
 
-Here's an example of updating the price of the brah surfboard to 599.99
+Here's an example of updating the price of a surfboard to 599.99
 
 ```
 PUT /boards/58748
@@ -169,11 +167,15 @@ Returned when the operation successfully update the surfboard.
 
 ### Response 400 Bad request
 
-Returned when the supplied request body is missing or if required fields are missing.
+Returned when the supplied request body is missing or if any required fields are missing or if the `sku` provided in the path does not match the `sku` property value in the request body.
 
 ### Response 404 Not Found
 
 The requested resource could not be found. You may be trying to access a record that does not exist, or you may have supplied an invalid URL.
+
+### Response 409 Conflict
+
+Indicates that the request could not be processed because of conflict in the request. If the document already exists, you must specify the most recent revision `_rev`, otherwise a conflict will occur.
 
 ### Response 500 Internal Server Error
 
